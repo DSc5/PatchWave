@@ -1,0 +1,5 @@
+rpm -qa --queryformat '%{NAME}=%{VERSION}-%{RELEASE}\n' | sort > "$PKGLIST_BEFORE"
+log "Running dnf upgrade..."
+dnf upgrade -y >> "$PATCH_UPDATES_LOG_FILE" 2>&1 \
+    || error_exit "DNF update failed on $HOSTNAME!"
+rpm -qa --queryformat '%{NAME}=%{VERSION}-%{RELEASE}\n' | sort > "$PKGLIST_AFTER"

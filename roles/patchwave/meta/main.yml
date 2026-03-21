@@ -1,0 +1,38 @@
+---
+galaxy_info:
+  role_name: patchwave
+  author: Davide Schairer
+  description: Automated Linux patch management
+  license: MIT
+  min_ansible_version: "2.12"
+
+  platforms:
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+    - name: Archlinux
+      versions:
+        - all
+    - name: opensuse
+      versions:
+        - all
+
+  galaxy_tags:
+    - patching
+    - linux
+    - automation
+    - systemd
+    - notifications
+    - proxmox
+
+dependencies: []

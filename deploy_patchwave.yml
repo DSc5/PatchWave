@@ -1,0 +1,6 @@
+---
+- name: Deploy PatchWave
+  hosts: all
+  become: yes
+  roles:
+    - patchwave

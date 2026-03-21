@@ -1,0 +1,5 @@
+if command -v needrestart > /dev/null 2>&1; then
+    needrestart -b 2>/dev/null | grep -q "NEEDRESTART-KSTA: 3" && REBOOT_REQUIRED=true
+else
+    error_exit "needrestart not found. Cannot determine if reboot is required. Skipping reboot."
+fi

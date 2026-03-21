@@ -1,0 +1,34 @@
+# Ignore host_vars except template
+host_vars/*
+!host_vars/host_vars.yml.template
+
+# Ignore group_vars except templates
+group_vars/*
+!group_vars/patchwave_window.yml.template
+
+# Allow group_vars/all/ directory and its templates, but ignore actual configs
+!group_vars/all/
+group_vars/all/*
+!group_vars/all/vars.yml.template
+!group_vars/all/vault.yml.template
+
+# Ignore vault password file
+.vault_pass
+
+# Ignore the actual inventory (keep the example)
+patchwave.ini
+
+# Ignore logs and temporary files
+logs/
+*.log
+*.tmp
+
+# Ignore Ansible execution cache
+*.retry
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore sensitive unencrypted credentials
+secrets.yml

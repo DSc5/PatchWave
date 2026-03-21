@@ -1,0 +1,59 @@
+# Template for host-specific variables.
+# Copy to host_vars/<hostname>.yml and modify as needed.
+# Global defaults are set in group_vars/all/vars.yml — only override here what differs per host.
+
+###########################################################################
+# Service Management
+###########################################################################
+
+# Services to stop before patching and start after reboot.
+# Stopped top-to-bottom, started bottom-to-top (respects dependencies).
+# patchwave_services:
+#   - nginx
+#   - mysql
+#   - redis
+
+# Custom scripts to run before reboot (absolute paths on the managed host).
+# Executed in list order. Scripts must exist and be executable on the host.
+# patchwave_pre_reboot_scripts:
+#   - /usr/local/bin/my-pre-reboot-script.sh
+
+# Custom scripts to run after reboot (absolute paths on the managed host).
+# patchwave_post_reboot_scripts:
+#   - /usr/local/bin/my-post-reboot-script.sh
+
+###########################################################################
+# Patch Behavior
+###########################################################################
+
+# Reboot policy: "always" or "when_required"
+# patchwave_reboot_policy: "always"
+
+###########################################################################
+# Notifications
+###########################################################################
+
+# ntfy.sh topic URL for patch notifications (overrides global setting)
+# patchwave_ntfy_topic: "https://ntfy.sh/your-host-specific-topic"
+
+# Notification level: "always" (success + errors) or "errors_only"
+# patchwave_notify_level: "always"
+
+# Webhook URLs for structured JSON callbacks (overrides global setting)
+# patchwave_webhook_on_success: "https://your-webhook/success"
+# patchwave_webhook_on_fail: "https://your-webhook/fail"
+
+# Skip TLS certificate verification for all curl calls (ntfy, webhooks, Proxmox API).
+# Not recommended in production — prefer a properly signed certificate or a trusted CA.
+# patchwave_tls_insecure: false
+
+###########################################################################
+# Proxmox Snapshot (optional)
+###########################################################################
+
+# VM ID for this host (required if proxmox_snapshot_before_patch is true)
+# proxmox_vmid: "100"
+
+# Per-host overrides for snapshot behavior
+# proxmox_snapshot_before_patch: false
+# proxmox_snapshot_delete_after_successful_patch: true

@@ -1,0 +1,11 @@
+---
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Restart patchwave timer
+  systemd:
+    name: patchwave.timer
+    state: restarted
+    enabled: yes
+  when: patchwave_patch_window is defined

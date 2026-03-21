@@ -1,0 +1,85 @@
+---
+# undeploy_patchmanager.yml
+# Removes all components of the old PatchManager installation.
+# Run this BEFORE deploying PatchWave to ensure a clean migration.
+#
+# Usage:
+#   ansible-playbook -i /etc/ansible/hosts -i <your-inventory> undeploy_patchmanager.yml
+
+- name: Remove old PatchManager installation
+  hosts: all
+  become: yes
+  gather_facts: no
+
+  tasks:
+    # --- Systemd timer and service ---
+
+    - name: Check if patchmanager.timer exists
+      stat:
+        path: /etc/systemd/system/patchmanager.timer
+      register: patchmanager_timer
+
+    - name: Stop and disable patchmanager.timer
+      systemd:
+        name: patchmanager.timer
+        state: stopped
+        enabled: no
+      when: patchmanager_timer.stat.exists
+      ignore_errors: yes
+
+    - name: Remove patchmanager.timer
+      file:
+        path: /etc/systemd/system/patchmanager.timer
+        state: absent
+
+    - name: Remove patchmanager.service
+      file:
+        path: /etc/systemd/system/patchmanager.service
+        state: absent
+
+    # --- Patch-reboot service ---
+
+    - name: Check if patch-reboot.service exists
+      stat:
+        path: /etc/systemd/system/patch-reboot.service
+      register: patch_reboot_service
+
+    - name: Stop and disable patch-reboot.service
+      systemd:
+        name: patch-reboot.service
+        state: stopped
+        enabled: no
+      when: patch_reboot_service.stat.exists
+      ignore_errors: yes
+
+    - name: Remove patch-reboot.service
+      file:
+        path: /etc/systemd/system/patch-reboot.service
+        state: absent
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    # --- Scripts ---
+
+    - name: Remove old scripts
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /usr/local/bin/patch_system.sh
+        - /usr/local/bin/stop_services_and_reboot.sh
+        - /usr/local/bin/start_services_after_reboot.sh
+
+    # --- Directories ---
+
+    - name: Remove old patchmanager directories
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/patchmanager
+        - /var/patchmanager
+        - /var/lib/patchmanager
+        - /var/log/patchmanager

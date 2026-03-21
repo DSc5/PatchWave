@@ -1,0 +1,11 @@
+---
+- name: Deploy PatchWave scripts and services
+  include_tasks: deploy_scripts.yml
+
+- name: Configure systemd timer
+  include_tasks: deploy_timer.yml
+  when: patchwave_patch_window is defined
+
+- name: Remove systemd timer if no patch window is set
+  include_tasks: remove_timer.yml
+  when: patchwave_patch_window is not defined

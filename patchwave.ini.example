@@ -1,0 +1,22 @@
+# PatchWave Inventory
+# This file assigns hosts to patch window groups.
+# Connection details (ansible_host, ansible_user, etc.) should be defined
+# in your global inventory (e.g. /etc/ansible/hosts).
+#
+# Usage:
+#   ansible-playbook -i /etc/ansible/hosts -i patchwave.ini deploy_patchwave.yml
+
+[patchwave_window_sunday_05]
+# Early morning maintenance window
+# pvedc01.example.com
+# pvedc02.example.com
+
+[patchwave_window_sunday_12]
+# Midday maintenance window
+# pvedb01.example.com
+# pvecs02.example.com
+
+[patchwave_window_sunday_1630]
+# Afternoon maintenance window
+# pvegit01.example.com
+# pvezbx01.example.com

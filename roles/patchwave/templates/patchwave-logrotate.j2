@@ -1,0 +1,21 @@
+{{ patchwave_log_dir }}/*.log {
+    daily
+    missingok
+    notifempty
+    compress
+    delaycompress
+    maxage {{ patchwave_log_retention_days }}
+    rotate {{ patchwave_log_retention_days }}
+    create 0640 root root
+}
+
+{{ patchwave_event_log }} {
+    daily
+    missingok
+    notifempty
+    compress
+    delaycompress
+    maxage {{ patchwave_log_retention_days }}
+    rotate {{ patchwave_log_retention_days }}
+    create 0640 root root
+}

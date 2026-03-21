@@ -1,0 +1,5 @@
+pacman -Q | awk '{print $1"="$2}' | sort > "$PKGLIST_BEFORE"
+log "Running pacman -Syu..."
+pacman -Syu --noconfirm >> "$PATCH_UPDATES_LOG_FILE" 2>&1 \
+    || error_exit "Pacman update failed on $HOSTNAME!"
+pacman -Q | awk '{print $1"="$2}' | sort > "$PKGLIST_AFTER"

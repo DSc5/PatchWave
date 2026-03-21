@@ -1,0 +1,164 @@
+#!/bin/bash
+#
+# patchwave-post-reboot.sh — Post-reboot hook
+#
+# Run by the patchwave-post-reboot systemd service on every boot.
+# Checks for the marker file left by patchwave-pre-reboot.sh — if absent,
+# this was a manual reboot and the script exits without doing anything.
+# On a patch reboot: starts services in reverse order, runs custom
+# post-reboot scripts, optionally deletes the Proxmox snapshot,
+# and sends the final success notification.
+#
+
+STATE_DIR="{{ patchwave_state_dir }}"
+TIMESTAMP_FILE="$STATE_DIR/patch_timestamp"
+
+if [ ! -f "$TIMESTAMP_FILE" ]; then
+    echo "No timestamp file found. Exiting."
+    exit 0
+fi
+
+TIMESTAMP="$(cat "$TIMESTAMP_FILE")"
+LOG_DIR="{{ patchwave_log_dir }}"
+LOG_FILE="${LOG_DIR}/summary_${TIMESTAMP}.log"
+MARKER_FILE="$STATE_DIR/patchwave_reboot"
+NTFY_TOPIC="{{ patchwave_ntfy_topic }}"
+HOSTNAME="{{ inventory_hostname }}"
+SERVICES=({{ patchwave_services | reverse | join(' ') }})
+SCRIPT_TIMEOUT={{ patchwave_script_timeout }}
+NOTIFY_LEVEL="{{ patchwave_notify_level | default('always') }}"
+WEBHOOK_ON_SUCCESS="{{ patchwave_webhook_on_success | default('') }}"
+WEBHOOK_ON_FAIL="{{ patchwave_webhook_on_fail | default('') }}"
+TLS_INSECURE="{{ patchwave_tls_insecure | default(false) | lower }}"
+EVENT_LOG="{{ patchwave_event_log }}"
+
+mkdir -p "$LOG_DIR"
+
+# Source shared functions
+source {{ patchwave_config_dir }}/bin/functions.sh
+
+log "=== Post-reboot: starting services on $HOSTNAME ==="
+
+if [ ! -f "$MARKER_FILE" ]; then
+    log "No marker file found. This reboot was likely manual. Exiting."
+    exit 0
+fi
+
+log "Marker file found. Restarting services..."
+
+for SERVICE in "${SERVICES[@]}"; do
+    log "Starting $SERVICE..."
+    systemctl start "$SERVICE" || error_exit "Failed to start $SERVICE on $HOSTNAME!"
+done
+
+log "All systemd services started successfully."
+
+{% if patchwave_post_reboot_scripts | default([]) | length > 0 %}
+log "Running custom post-reboot scripts..."
+
+{% for script in patchwave_post_reboot_scripts %}
+log "Executing custom script: {{ script }} with timeout of $SCRIPT_TIMEOUT seconds"
+if [[ ! -x "{{ script }}" ]]; then
+    error_exit "Custom post-reboot script {{ script }} is not executable or not found on $HOSTNAME!"
+fi
+timeout "$SCRIPT_TIMEOUT" "{{ script }}"
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 124 ]; then
+    error_exit "Custom post-reboot script {{ script }} timed out on $HOSTNAME!"
+elif [ $EXIT_CODE -ne 0 ]; then
+    error_exit "Custom post-reboot script {{ script }} failed on $HOSTNAME!"
+fi
+log "Custom script {{ script }} executed successfully."
+
+{% endfor %}
+log "All custom post-reboot scripts executed successfully."
+{% else %}
+log "No custom post-reboot scripts configured."
+{% endif %}
+
+rm -f "$MARKER_FILE"
+
+# Proxmox Snapshot Deletion (if enabled)
+if {{ proxmox_snapshot_delete_after_successful_patch | default('true') | lower }}; then
+    if [ -f "$STATE_DIR/last_snapshot" ]; then
+        SNAPSHOT_NAME=$(cat "$STATE_DIR/last_snapshot")
+        log "Deleting Proxmox snapshot: ${SNAPSHOT_NAME}"
+
+        do_curl -X DELETE "https://{{ proxmox_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ proxmox_vmid | default('') }}/snapshot/${SNAPSHOT_NAME}" \
+            -H "Authorization: {{ proxmox_token }}"
+
+        if [ $CURL_EXIT -ne 0 ] || echo "$CURL_RESPONSE" | grep -q "error"; then
+            log "Failed to delete Proxmox snapshot: ${SNAPSHOT_NAME}"
+            error_exit "Failed to delete snapshot ${SNAPSHOT_NAME} on VM {{ proxmox_vmid | default('') }}. (exit=${CURL_EXIT}) ${CURL_RESPONSE}"
+        else
+            log "Successfully deleted snapshot: ${SNAPSHOT_NAME}"
+            rm -f "$STATE_DIR/last_snapshot"
+        fi
+    fi
+fi
+
+log "Patch process completed successfully!"
+
+# Read patch metadata if available
+DISTRO="{{ ansible_distribution | lower }}"
+PATCH_DURATION=0
+PACKAGES_CHANGED=0
+METADATA_LOADED=false
+
+PKGS_UPDATED_JSON="[]"
+
+if [ -f "$STATE_DIR/patch_metadata" ]; then
+    source "$STATE_DIR/patch_metadata"
+    PATCH_DURATION_MIN=$(( PATCH_DURATION / 60 ))
+    PATCH_DURATION_SEC=$(( PATCH_DURATION % 60 ))
+    METADATA_LOADED=true
+    rm -f "$STATE_DIR/patch_metadata"
+fi
+
+if [ -f "$STATE_DIR/packages_updated" ]; then
+    PKGS_UPDATED_JSON=$(cat "$STATE_DIR/packages_updated")
+    rm -f "$STATE_DIR/packages_updated"
+fi
+
+if [ "$NOTIFY_LEVEL" = "always" ]; then
+    if [ "$METADATA_LOADED" = true ]; then
+        NOTIFY_PKG_INFO="Packages changed: ${PACKAGES_CHANGED}
+Patch duration: ${PATCH_DURATION_MIN}m ${PATCH_DURATION_SEC}s"
+    else
+        NOTIFY_PKG_INFO="Packages changed: n/a
+Patch duration: n/a"
+    fi
+    send_notification \
+        "Patch Success – $HOSTNAME" \
+        "default" \
+        "white_check_mark,package" \
+        "Host: $HOSTNAME
+Distro: $DISTRO
+${NOTIFY_PKG_INFO}
+Reboot: completed
+Services: all restarted successfully"
+fi
+
+EVENT_TS=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+if [ -n "$WEBHOOK_ON_SUCCESS" ]; then
+    send_webhook "$WEBHOOK_ON_SUCCESS" "$(jq -n \
+        --arg ts "$EVENT_TS" \
+        --arg host "$HOSTNAME" \
+        --arg distro "$DISTRO" \
+        --argjson changed "${PACKAGES_CHANGED:-0}" \
+        --argjson pkgs "$PKGS_UPDATED_JSON" \
+        --argjson dur "${PATCH_DURATION:-0}" \
+        '{"event":"success","host":$host,"timestamp":$ts,"distro":$distro,"packages_changed":$changed,"packages_updated":$pkgs,"duration_seconds":$dur,"reboot":true}')"
+fi
+
+write_event_log "$(jq -n \
+    --arg ts "$EVENT_TS" \
+    --arg host "$HOSTNAME" \
+    --arg distro "$DISTRO" \
+    --argjson changed "${PACKAGES_CHANGED:-0}" \
+    --argjson pkgs "$PKGS_UPDATED_JSON" \
+    --argjson dur "${PATCH_DURATION:-0}" \
+    '{"timestamp":$ts,"host":$host,"event":"patch_success","distro":$distro,"packages_changed":$changed,"packages_updated":$pkgs,"duration_seconds":$dur,"reboot":true}')"
+
+rm -f "$TIMESTAMP_FILE"

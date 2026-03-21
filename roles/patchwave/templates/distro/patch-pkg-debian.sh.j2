@@ -1,0 +1,5 @@
+dpkg-query -W -f='${Package}=${Version}\n' | sort > "$PKGLIST_BEFORE"
+log "Running apt update & {{ patchwave_apt_upgrade_mode | default('upgrade') }}..."
+apt update && apt {{ patchwave_apt_upgrade_mode | default('upgrade') }} -y >> "$PATCH_UPDATES_LOG_FILE" 2>&1 \
+    || error_exit "APT update failed on $HOSTNAME!"
+dpkg-query -W -f='${Package}=${Version}\n' | sort > "$PKGLIST_AFTER"

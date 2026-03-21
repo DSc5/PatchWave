@@ -1,0 +1,10 @@
+# PatchWave – Vault Secrets Template
+#
+# Copy this file to group_vars/all/vault.yml, fill in your secrets,
+# then encrypt it:
+#
+#   ansible-vault encrypt group_vars/all/vault.yml
+#
+# Never commit the unencrypted vault.yml to version control.
+
+vault_proxmox_token: "PVEAPIToken=<full-tokenid>=<token>"

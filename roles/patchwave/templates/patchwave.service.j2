@@ -1,0 +1,9 @@
+[Unit]
+Description=PatchWave Auto-Patching Service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart={{ patchwave_script_dir }}/patchwave-patch.sh
+StandardOutput=journal
+StandardError=journal

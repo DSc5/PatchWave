@@ -1,0 +1,98 @@
+---
+###########################################################################
+# Notification Settings (optional)
+###########################################################################
+
+# ntfy.sh topic URL for patch notifications.
+# Leave empty to disable notifications entirely.
+patchwave_ntfy_topic: ""
+
+# Notification level: "always" (success + errors) or "errors_only"
+patchwave_notify_level: "always"
+
+# Webhook URLs for structured JSON callbacks (optional).
+# POST is sent with Content-Type: application/json.
+# Leave empty to disable.
+patchwave_webhook_on_success: ""
+patchwave_webhook_on_fail: ""
+
+# Set to true to skip TLS certificate verification for all curl calls
+# (ntfy notifications, webhooks, Proxmox API). Use for self-signed certificates.
+# Not recommended in production — prefer a properly signed certificate or a trusted CA.
+patchwave_tls_insecure: false
+
+###########################################################################
+# Observability
+###########################################################################
+
+# Path to the JSON Lines event log (one JSON object per line, append-only).
+# Consumed by Promtail/Loki, Filebeat, Vector, Fluentd, jq, etc.
+# Set to an empty string to disable.
+patchwave_event_log: "{{ patchwave_log_dir }}/events.jsonl"
+
+###########################################################################
+# Service Management
+###########################################################################
+
+# Services to stop before patching and start after reboot.
+# Stopped top-to-bottom, started bottom-to-top.
+patchwave_services: []
+
+# Timeout for custom scripts in seconds
+patchwave_script_timeout: 300
+
+###########################################################################
+# Paths and Directories
+###########################################################################
+
+# Base directory for PatchWave configuration and shared files
+patchwave_config_dir: "/etc/patchwave"
+
+# Directory for runtime state (markers, timestamps)
+patchwave_state_dir: "/var/lib/patchwave"
+
+# Directory for log files
+patchwave_log_dir: "/var/log/patchwave"
+
+# Directory where PatchWave scripts are installed
+patchwave_script_dir: "/usr/local/bin"
+
+# Custom scripts to execute before reboot (absolute paths on the managed host).
+# Executed in list order, each with patchwave_script_timeout. Empty = disabled.
+patchwave_pre_reboot_scripts: []
+
+# Custom scripts to execute after reboot (absolute paths on the managed host).
+# Executed in list order, each with patchwave_script_timeout. Empty = disabled.
+patchwave_post_reboot_scripts: []
+
+###########################################################################
+# Patch Behavior
+###########################################################################
+
+# APT upgrade mode for Debian/Ubuntu only: "upgrade" (safe) or "full-upgrade" (may remove packages)
+patchwave_apt_upgrade_mode: "upgrade"
+
+# Reboot policy: "always" or "when_required" (checks /var/run/reboot-required etc.)
+patchwave_reboot_policy: "always"
+
+###########################################################################
+# Logging
+###########################################################################
+
+# Number of days to keep log files (managed via logrotate)
+patchwave_log_retention_days: 90
+
+###########################################################################
+# Proxmox Snapshot Settings (optional)
+###########################################################################
+
+# Set to true to create a snapshot before patching
+proxmox_snapshot_before_patch: false
+
+# Set to true to delete snapshot after successful patching
+proxmox_snapshot_delete_after_successful_patch: true
+
+# Connection details (proxmox_host, proxmox_node, proxmox_token, proxmox_vmid)
+# have no sensible defaults and must be set in group_vars/all.yml or
+# host_vars/<hostname>.yml if snapshots are enabled.
+# See README.md for setup instructions and vault integration.

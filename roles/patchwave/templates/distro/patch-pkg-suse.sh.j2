@@ -1,0 +1,5 @@
+rpm -qa --queryformat '%{NAME}=%{VERSION}-%{RELEASE}\n' | sort > "$PKGLIST_BEFORE"
+log "Running zypper refresh & update..."
+zypper refresh && zypper update -y >> "$PATCH_UPDATES_LOG_FILE" 2>&1 \
+    || error_exit "Zypper update failed on $HOSTNAME!"
+rpm -qa --queryformat '%{NAME}=%{VERSION}-%{RELEASE}\n' | sort > "$PKGLIST_AFTER"

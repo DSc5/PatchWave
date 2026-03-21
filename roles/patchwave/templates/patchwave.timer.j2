@@ -1,0 +1,9 @@
+[Unit]
+Description=Runs PatchWave at the scheduled time
+
+[Timer]
+OnCalendar={{ patchwave_patch_window }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

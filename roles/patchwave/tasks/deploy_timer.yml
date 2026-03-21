@@ -1,0 +1,27 @@
+---
+- name: Display patch window for host
+  debug:
+    msg: "Patch window for {{ inventory_hostname }} is set to {{ patchwave_patch_window }}"
+
+- name: Create systemd service file
+  template:
+    src: patchwave.service.j2
+    dest: /etc/systemd/system/patchwave.service
+    mode: '0644'
+  notify: Reload systemd
+
+- name: Create systemd timer file
+  template:
+    src: patchwave.timer.j2
+    dest: /etc/systemd/system/patchwave.timer
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart patchwave timer
+
+- name: Ensure timer is enabled and started
+  systemd:
+    name: patchwave.timer
+    enabled: yes
+    state: started
+    daemon_reload: yes

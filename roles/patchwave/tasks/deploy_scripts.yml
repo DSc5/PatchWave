@@ -1,0 +1,100 @@
+---
+- name: Validate required Proxmox variables when snapshots are enabled
+  assert:
+    that:
+      - proxmox_host is defined
+      - proxmox_node is defined
+      - proxmox_token is defined
+      - proxmox_vmid is defined
+    fail_msg: >
+      proxmox_snapshot_before_patch is true for host '{{ inventory_hostname }}' but one or more
+      required variables are missing: proxmox_host, proxmox_node, proxmox_token, proxmox_vmid.
+  when: proxmox_snapshot_before_patch | default(false) | bool
+
+- name: Ensure jq is installed
+  package:
+    name: jq
+    state: present
+
+- name: Ensure needrestart is installed
+  package:
+    name: needrestart
+    state: present
+
+- name: Ensure required directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0750'
+  loop:
+    - "{{ patchwave_config_dir }}"
+    - "{{ patchwave_config_dir }}/bin"
+    - "{{ patchwave_state_dir }}"
+    - "{{ patchwave_log_dir }}"
+
+- name: Remove old custom script directories (replaced by patchwave_pre/post_reboot_scripts variables)
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ patchwave_config_dir }}/custom-pre-reboot-scripts"
+    - "{{ patchwave_config_dir }}/custom-post-reboot-scripts"
+    - "{{ patchwave_config_dir }}/custom-start-scripts"
+
+- name: Deploy shared functions
+  copy:
+    src: functions.sh
+    dest: "{{ patchwave_config_dir }}/bin/functions.sh"
+    owner: root
+    group: root
+    mode: '0640'
+
+- name: Deploy patch script
+  template:
+    src: patchwave-patch.sh.j2
+    dest: "{{ patchwave_script_dir }}/patchwave-patch.sh"
+    mode: '0750'
+
+- name: Deploy pre-reboot script
+  template:
+    src: patchwave-pre-reboot.sh.j2
+    dest: "{{ patchwave_script_dir }}/patchwave-pre-reboot.sh"
+    mode: '0750'
+
+- name: Deploy post-reboot script
+  template:
+    src: patchwave-post-reboot.sh.j2
+    dest: "{{ patchwave_script_dir }}/patchwave-post-reboot.sh"
+    mode: '0750'
+
+- name: Deploy systemd service for post-reboot script
+  copy:
+    dest: /etc/systemd/system/patchwave-post-reboot.service
+    content: |
+      [Unit]
+      Description=PatchWave – Start services after patch reboot
+      After=network.target
+
+      [Service]
+      Type=oneshot
+      ExecStart={{ patchwave_script_dir }}/patchwave-post-reboot.sh
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: '0640'
+  notify: Reload systemd
+
+- name: Enable patchwave-post-reboot service
+  systemd:
+    name: patchwave-post-reboot
+    enabled: yes
+    daemon_reload: yes
+
+- name: Deploy logrotate configuration
+  template:
+    src: patchwave-logrotate.j2
+    dest: /etc/logrotate.d/patchwave
+    owner: root
+    group: root
+    mode: '0644'

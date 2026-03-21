@@ -1,0 +1,196 @@
+#!/bin/bash
+#
+# patchwave-patch.sh — Main patch entry point
+#
+# Triggered by the patchwave systemd timer (or manually).
+# Detects the Linux distribution, optionally creates a Proxmox snapshot,
+# runs the appropriate package manager, and checks if a reboot is required.
+#
+# If reboot is required:  calls patchwave-pre-reboot.sh → reboot →
+#                         patchwave-post-reboot.sh runs on next boot
+# If no reboot required:  sends success notification and exits
+#
+
+STATE_DIR="{{ patchwave_state_dir }}"
+TIMESTAMP_FILE="${STATE_DIR}/patch_timestamp"
+NTFY_TOPIC="{{ patchwave_ntfy_topic }}"
+HOSTNAME="{{ inventory_hostname }}"
+PRE_REBOOT_SCRIPT="{{ patchwave_script_dir }}/patchwave-pre-reboot.sh"
+NOTIFY_LEVEL="{{ patchwave_notify_level | default('always') }}"
+WEBHOOK_ON_SUCCESS="{{ patchwave_webhook_on_success | default('') }}"
+WEBHOOK_ON_FAIL="{{ patchwave_webhook_on_fail | default('') }}"
+TLS_INSECURE="{{ patchwave_tls_insecure | default(false) | lower }}"
+EVENT_LOG="{{ patchwave_event_log }}"
+PATCH_START_TIME=$(date +%s)
+
+mkdir -p "$STATE_DIR"
+
+# Prevent concurrent patch runs
+LOCK_FILE="$STATE_DIR/patchwave.lock"
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') Another PatchWave instance is already running (lock: $LOCK_FILE). Exiting." >&2
+    exit 0
+fi
+
+if [ ! -f "$TIMESTAMP_FILE" ]; then
+    TIMESTAMP="$(date '+%Y-%m-%d_%H-%M-%S')"
+    echo "$TIMESTAMP" > "$TIMESTAMP_FILE"
+else
+    TIMESTAMP="$(cat "$TIMESTAMP_FILE")"
+fi
+
+LOG_DIR="{{ patchwave_log_dir }}"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/summary_${TIMESTAMP}.log"
+PATCH_UPDATES_LOG_FILE="${LOG_DIR}/patch_updates_${TIMESTAMP}.log"
+
+# Source shared functions
+source {{ patchwave_config_dir }}/bin/functions.sh
+
+log "System $HOSTNAME is starting the patch process"
+
+{% if patchwave_ntfy_topic or patchwave_webhook_on_success or patchwave_webhook_on_fail or proxmox_snapshot_before_patch | default(false) %}
+if ! command -v curl > /dev/null 2>&1; then
+    log "ERROR: curl is not installed but required for configured features (notifications/Proxmox snapshots)."
+    exit 1
+fi
+{% endif %}
+
+DISTRO="{{ ansible_distribution | lower }}"
+
+log "Detected Linux distribution: $DISTRO"
+
+EVENT_TS=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+write_event_log "$(jq -n \
+    --arg ts "$EVENT_TS" \
+    --arg host "$HOSTNAME" \
+    --arg distro "$DISTRO" \
+    '{"timestamp":$ts,"host":$host,"event":"patch_start","distro":$distro}')"
+
+# Proxmox Snapshot handling (optional)
+if {{ proxmox_snapshot_before_patch | default('false') | lower }}; then
+
+    # Abort if a snapshot from a previous run was never cleaned up
+    if [ -f "$STATE_DIR/last_snapshot" ]; then
+        OLD_SNAPSHOT=$(cat "$STATE_DIR/last_snapshot")
+        error_exit "Leftover snapshot reference '${OLD_SNAPSHOT}' found from a previous run. Verify and clean up the snapshot on Proxmox manually, then remove '${STATE_DIR}/last_snapshot' to continue."
+    fi
+
+    SNAPSHOT_NAME="patchwave_$(date +%Y%m%d_%H%M%S)"
+
+    log "Creating Proxmox snapshot before patching..."
+    do_curl -X POST "https://{{ proxmox_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ proxmox_vmid | default('') }}/snapshot" \
+        -H "Authorization: {{ proxmox_token }}" \
+        -H "Content-Type: application/json" \
+        -d "{\"snapname\": \"${SNAPSHOT_NAME}\"}"
+
+    if [ $CURL_EXIT -ne 0 ] || echo "$CURL_RESPONSE" | grep -q "error"; then
+        error_exit "Failed to create Proxmox snapshot before patching. (exit=${CURL_EXIT}) ${CURL_RESPONSE}"
+    fi
+
+    echo "${SNAPSHOT_NAME}" > "$STATE_DIR/last_snapshot"
+    log "Snapshot created successfully: ${SNAPSHOT_NAME}"
+fi
+
+# Run package updates
+PKGLIST_BEFORE="${STATE_DIR}/pkglist_before"
+PKGLIST_AFTER="${STATE_DIR}/pkglist_after"
+
+{% if ansible_os_family == 'Debian' %}
+{% include 'distro/patch-pkg-debian.sh.j2' %}
+{% elif ansible_os_family == 'RedHat' %}
+{% include 'distro/patch-pkg-rhel.sh.j2' %}
+{% elif ansible_os_family == 'Suse' %}
+{% include 'distro/patch-pkg-suse.sh.j2' %}
+{% elif ansible_os_family == 'Archlinux' %}
+{% include 'distro/patch-pkg-arch.sh.j2' %}
+{% else %}
+echo "Unsupported distribution: {{ ansible_os_family }}" >&2
+exit 1
+{% endif %}
+
+PATCH_END_TIME=$(date +%s)
+PATCH_DURATION=$(( PATCH_END_TIME - PATCH_START_TIME ))
+PATCH_DURATION_MIN=$(( PATCH_DURATION / 60 ))
+PATCH_DURATION_SEC=$(( PATCH_DURATION % 60 ))
+# Derive packages_changed from the version diff (not total count diff)
+PKGS_UPDATED_NAMES=$(comm -13 "$PKGLIST_BEFORE" "$PKGLIST_AFTER" | \
+    awk -F'=' '{print $1}' | sort -u)
+rm -f "$PKGLIST_BEFORE" "$PKGLIST_AFTER"
+
+PACKAGES_CHANGED=0
+[ -n "$PKGS_UPDATED_NAMES" ] && PACKAGES_CHANGED=$(echo "$PKGS_UPDATED_NAMES" | wc -l | tr -d ' ')
+if [ -z "$PKGS_UPDATED_NAMES" ]; then
+    PKGS_UPDATED_JSON="[]"
+else
+    PKGS_UPDATED_JSON=$(echo "$PKGS_UPDATED_NAMES" | jq -R . | jq -sc .)
+fi
+
+log "Update process completed successfully on $HOSTNAME."
+log "Duration: ${PATCH_DURATION_MIN}m ${PATCH_DURATION_SEC}s | Packages changed: ${PACKAGES_CHANGED}"
+
+# Save patch metadata for the start script notification
+cat > "$STATE_DIR/patch_metadata" <<EOF
+DISTRO=$DISTRO
+PATCH_DURATION=${PATCH_DURATION}
+PACKAGES_CHANGED=${PACKAGES_CHANGED}
+EOF
+echo "$PKGS_UPDATED_JSON" > "$STATE_DIR/packages_updated"
+
+# Check if reboot is required
+REBOOT_REQUIRED=false
+
+{% if patchwave_reboot_policy | default('always') == 'when_required' %}
+{% include 'distro/reboot-check.sh.j2' %}
+{% else %}
+REBOOT_REQUIRED=true
+{% endif %}
+
+if [ "$REBOOT_REQUIRED" = true ]; then
+    log "Reboot required. Executing stop script..."
+    if [ -x "$PRE_REBOOT_SCRIPT" ]; then
+        "$PRE_REBOOT_SCRIPT"
+    else
+        error_exit "Pre-reboot script $PRE_REBOOT_SCRIPT not found or not executable!"
+    fi
+else
+    log "No reboot required. Patch process complete without reboot."
+
+    if [ "$NOTIFY_LEVEL" = "always" ]; then
+        send_notification \
+            "Patch Success – $HOSTNAME (no reboot)" \
+            "default" \
+            "white_check_mark,package" \
+            "Host: $HOSTNAME
+Distro: $DISTRO
+Packages changed: ${PACKAGES_CHANGED}
+Duration: ${PATCH_DURATION_MIN}m ${PATCH_DURATION_SEC}s
+Reboot: not required"
+    fi
+
+    EVENT_TS=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+    if [ -n "$WEBHOOK_ON_SUCCESS" ]; then
+        send_webhook "$WEBHOOK_ON_SUCCESS" "$(jq -n \
+            --arg ts "$EVENT_TS" \
+            --arg host "$HOSTNAME" \
+            --arg distro "$DISTRO" \
+            --argjson changed "$PACKAGES_CHANGED" \
+            --argjson pkgs "$PKGS_UPDATED_JSON" \
+            --argjson dur "$PATCH_DURATION" \
+            '{"event":"success","host":$host,"timestamp":$ts,"distro":$distro,"packages_changed":$changed,"packages_updated":$pkgs,"duration_seconds":$dur,"reboot":false}')"
+    fi
+
+    write_event_log "$(jq -n \
+        --arg ts "$EVENT_TS" \
+        --arg host "$HOSTNAME" \
+        --arg distro "$DISTRO" \
+        --argjson changed "$PACKAGES_CHANGED" \
+        --argjson pkgs "$PKGS_UPDATED_JSON" \
+        --argjson dur "$PATCH_DURATION" \
+        '{"timestamp":$ts,"host":$host,"event":"patch_success","distro":$distro,"packages_changed":$changed,"packages_updated":$pkgs,"duration_seconds":$dur,"reboot":false}')"
+
+    rm -f "$TIMESTAMP_FILE" "$STATE_DIR/patch_metadata" "$STATE_DIR/packages_updated"
+fi

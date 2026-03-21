@@ -1,0 +1,19 @@
+# PatchWave – Patch Window Group Variables Template
+#
+# Create one file per patch window group. The filename must match
+# the group name defined in your inventory (patchwave.ini).
+#
+# Example:
+#   Inventory group:  [patchwave_window_sunday_12]
+#   Group vars file:  group_vars/patchwave_window_sunday_12.yml
+#
+# The value must follow systemd OnCalendar syntax:
+#   https://www.freedesktop.org/software/systemd/man/systemd.time.html
+#
+# Examples:
+#   patchwave_patch_window: "Sun 12:00"          # Every Sunday at noon
+#   patchwave_patch_window: "Wed 03:00"          # Every Wednesday at 3 AM
+#   patchwave_patch_window: "Sat *-*-1..7 04:00" # First Saturday of each month at 4 AM
+#   patchwave_patch_window: "daily 02:00"        # Every day at 2 AM
+
+patchwave_patch_window: "Sun 12:00"

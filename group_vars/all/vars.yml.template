@@ -1,0 +1,56 @@
+# PatchWave – Global Variables
+#
+# Copy this file to group_vars/all/vars.yml and adjust as needed.
+#
+# All available variables and their defaults are documented in:
+#   roles/patchwave/defaults/main.yml
+
+###########################################################################
+# Notification Settings (optional)
+# Leave patchwave_ntfy_topic empty to disable notifications entirely.
+###########################################################################
+# patchwave_ntfy_topic: "https://ntfy.sh/your-topic"
+# patchwave_notify_level: "always"
+
+###########################################################################
+# Webhook Settings (optional)
+# Sends a JSON POST request on success or failure.
+###########################################################################
+# patchwave_webhook_on_success: "https://your-webhook-endpoint/success"
+# patchwave_webhook_on_fail: "https://your-webhook-endpoint/fail"
+
+###########################################################################
+# TLS Settings (optional)
+# Skip TLS certificate verification for all curl calls
+# (ntfy, webhooks, Proxmox API). Not recommended in production.
+###########################################################################
+# patchwave_tls_insecure: false
+
+###########################################################################
+# Observability (optional)
+# JSON Lines event log — consumed by Promtail/Loki, Filebeat, Vector, jq, etc.
+# Default is already set. Set to "" to disable.
+###########################################################################
+# patchwave_event_log: "/var/log/patchwave/events.jsonl"
+
+###########################################################################
+# Patch Behavior
+# APT upgrade mode for Debian/Ubuntu only: "upgrade" (safe) or "full-upgrade" (may remove packages)
+###########################################################################
+patchwave_apt_upgrade_mode: "upgrade"
+patchwave_reboot_policy: "always"
+
+###########################################################################
+# Proxmox Snapshot Settings (optional)
+###########################################################################
+proxmox_snapshot_before_patch: false
+proxmox_snapshot_delete_after_successful_patch: true
+proxmox_host: "proxmox.example.com"
+proxmox_node: "pve"
+
+# Option 1: Set the token directly (simple, but unencrypted)
+# proxmox_token: "PVEAPIToken=<full-tokenid>=<token>"
+
+# Option 2: Reference a vault-encrypted variable (recommended)
+# Requires group_vars/all/vault.yml — see vault.yml.template and README.md
+proxmox_token: "{{ vault_proxmox_token }}"

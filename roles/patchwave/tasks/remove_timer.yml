@@ -1,0 +1,29 @@
+---
+- name: Check if patchwave.timer exists
+  stat:
+    path: /etc/systemd/system/patchwave.timer
+  register: patchwave_timer_file
+
+- name: Remove timer and service if present
+  block:
+    - name: Stop and disable patchwave timer
+      systemd:
+        name: patchwave.timer
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Remove systemd timer file
+      file:
+        path: /etc/systemd/system/patchwave.timer
+        state: absent
+
+    - name: Remove systemd service file
+      file:
+        path: /etc/systemd/system/patchwave.service
+        state: absent
+
+    - name: Reload systemd after removal
+      systemd:
+        daemon_reload: yes
+  when: patchwave_timer_file.stat.exists
