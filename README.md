@@ -458,7 +458,6 @@ The file format is natively supported by Promtail (Loki), Filebeat (Elasticsearc
 ```
 patchwave/
 ├── deploy_patchwave.yml                  # Main playbook (calls the role)
-├── undeploy_patchmanager.yml             # Migration: remove old PatchManager
 ├── patchwave.ini.example                 # Example inventory
 ├── group_vars/
 │   ├── patchwave_window.yml.template     # Patch window template
@@ -533,17 +532,6 @@ All variables are defined in `roles/patchwave/defaults/main.yml`. Override prior
 | `proxmox_node` | — | Proxmox node name |
 | `proxmox_token` | — | Proxmox API token (consider ansible-vault) |
 | `proxmox_vmid` | — | VM ID (typically set per host) |
-
----
-
-## Migration from PatchManager
-
-```bash
-ansible-playbook -i /etc/ansible/hosts undeploy_patchmanager.yml
-ansible-playbook -i /etc/ansible/hosts -i patchwave.ini deploy_patchwave.yml
-```
-
-Update your `host_vars` files to use the new variable names (e.g., `patchwave_services` instead of `patchmanager_services`).
 
 ---
 
