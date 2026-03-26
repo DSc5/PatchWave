@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 #
 # patchwave-pre-reboot.sh — Pre-reboot hook
 #
@@ -8,31 +9,21 @@
 # sends a reboot notification, and initiates the reboot.
 #
 
-LOG_DIR="{{ patchwave_log_dir }}"
-STATE_DIR="{{ patchwave_state_dir }}"
+source {{ patchwave_config_dir }}/config.sh
+source {{ patchwave_config_dir }}/bin/functions.sh
+
+mkdir -p "$LOG_DIR" "$STATE_DIR"
+
 TIMESTAMP_FILE="$STATE_DIR/patch_timestamp"
 MARKER_FILE="$STATE_DIR/patchwave_reboot"
-NTFY_TOPIC="{{ patchwave_ntfy_topic }}"
-HOSTNAME="{{ inventory_hostname }}"
-SERVICES=({{ patchwave_services | join(' ') }})
-SCRIPT_TIMEOUT={{ patchwave_script_timeout }}
-NOTIFY_LEVEL="{{ patchwave_notify_level | default('always') }}"
-WEBHOOK_ON_FAIL="{{ patchwave_webhook_on_fail | default('') }}"
-EVENT_LOG="{{ patchwave_event_log }}"
-
-mkdir -p "$LOG_DIR"
-mkdir -p "$STATE_DIR"
 
 if [ ! -f "$TIMESTAMP_FILE" ]; then
-    echo "No timestamp file found. Exiting."
+    log "No timestamp file found. Exiting."
     exit 1
 fi
 
 TIMESTAMP="$(cat "$TIMESTAMP_FILE")"
 LOG_FILE="${LOG_DIR}/summary_${TIMESTAMP}.log"
-
-# Source shared functions
-source {{ patchwave_config_dir }}/bin/functions.sh
 
 log "=== Pre-reboot: stopping services on $HOSTNAME ==="
 
@@ -51,8 +42,8 @@ log "Executing custom script: {{ script }} with timeout of $SCRIPT_TIMEOUT secon
 if [[ ! -x "{{ script }}" ]]; then
     error_exit "Custom pre-reboot script {{ script }} is not executable or not found on $HOSTNAME!"
 fi
-timeout "$SCRIPT_TIMEOUT" "{{ script }}"
-EXIT_CODE=$?
+EXIT_CODE=0
+timeout "$SCRIPT_TIMEOUT" "{{ script }}" || EXIT_CODE=$?
 if [ $EXIT_CODE -eq 124 ]; then
     error_exit "Custom pre-reboot script {{ script }} timed out on $HOSTNAME!"
 elif [ $EXIT_CODE -ne 0 ]; then
@@ -77,8 +68,5 @@ send_notification \
     "Host: $HOSTNAME
 Status: Rebooting after patching
 Services stopped successfully. System will come back up shortly."
-
-# Brief pause to allow the notification request to complete before network goes down
-sleep 3
 
 reboot
