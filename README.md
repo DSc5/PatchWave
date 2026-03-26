@@ -176,6 +176,8 @@ cp host_vars/host_vars.yml.template host_vars/<hostname>.yml
 
 To protect sensitive values (e.g. Proxmox API tokens), use [ansible-vault](https://docs.ansible.com/ansible/latest/vault_guide/index.html). A template is provided in `group_vars/all/vault.yml.template`.
 
+> **How configuration reaches the host:** During deployment, Ansible renders all variable values into `/etc/patchwave/config.sh` on each managed host. This file is the single runtime source of truth for all PatchWave scripts. It is owned by root and not readable by other users — you do not need to edit it directly.
+
 ### Reboot Policy
 
 ```yaml
@@ -355,6 +357,8 @@ proxmox_vmid: 100
 
 If the snapshot creation fails, patching is aborted with an error notification. Consider protecting the API token with [ansible-vault](https://docs.ansible.com/ansible/latest/vault_guide/index.html).
 
+The token is written to `/etc/patchwave/config.sh` on each managed host (mode `0640`, owned by root). Only root-level processes can read it. Using ansible-vault protects the token in your repository and during transfer — on the host, file permissions are the security boundary.
+
 #### Creating a Dedicated Proxmox User
 
 ```bash
@@ -477,6 +481,7 @@ patchwave/
 │       │   ├── deploy_timer.yml          # Set up systemd timer
 │       │   └── remove_timer.yml          # Remove timer if no window set
 │       ├── templates/
+│       │   ├── patchwave-config.sh.j2        # Runtime config (deployed to /etc/patchwave/config.sh)
 │       │   ├── patchwave-patch.sh.j2
 │       │   ├── patchwave-pre-reboot.sh.j2
 │       │   ├── patchwave-post-reboot.sh.j2

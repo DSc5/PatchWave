@@ -1,4 +1,8 @@
 ---
+- name: Validate patchwave_patch_window syntax
+  command: systemd-analyze calendar "{{ patchwave_patch_window }}"
+  changed_when: false
+
 - name: Display patch window for host
   debug:
     msg: "Patch window for {{ inventory_hostname }} is set to {{ patchwave_patch_window }}"
