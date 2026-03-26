@@ -41,6 +41,14 @@
     - "{{ patchwave_config_dir }}/custom-post-reboot-scripts"
     - "{{ patchwave_config_dir }}/custom-start-scripts"
 
+- name: Deploy runtime configuration
+  template:
+    src: patchwave-config.sh.j2
+    dest: "{{ patchwave_config_dir }}/config.sh"
+    owner: root
+    group: root
+    mode: '0640'
+
 - name: Deploy shared functions
   copy:
     src: functions.sh
@@ -73,7 +81,7 @@
     content: |
       [Unit]
       Description=PatchWave – Start services after patch reboot
-      After=network.target
+      After=network-online.target
 
       [Service]
       Type=oneshot

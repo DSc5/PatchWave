@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Shared functions for PatchWave scripts
-# Expects the following variables to be set before sourcing:
-#   LOG_FILE            - Path to the log file
+# Shared functions for PatchWave scripts.
+# Source patchwave-config.sh before this file. Expected variables:
+#   LOG_FILE            - Path to the log file (may be unset early in script lifecycle)
 #   HOSTNAME            - Hostname for notifications
 #   TLS_INSECURE        - "true" to skip TLS verification for all curl calls
 #   NTFY_TOPIC          - (optional) ntfy.sh notification URL, empty to disable
@@ -22,7 +22,8 @@ do_curl() {
 log() {
     local message="${1:-}"
     if [ -n "$message" ]; then
-        local entry="$(date '+%Y-%m-%d %H:%M:%S') $message"
+        local entry
+        entry="$(date '+%Y-%m-%d %H:%M:%S') $message"
         if [ -n "${LOG_FILE:-}" ]; then
             echo "$entry" | tee -a "$LOG_FILE"
         else
@@ -31,8 +32,11 @@ log() {
     fi
 }
 
+# Send a push notification via ntfy.sh.
+# Notifications with priority "high" are always sent (error events).
+# Notifications with any other priority are suppressed when NOTIFY_LEVEL=errors_only.
 send_notification() {
-    if [ -z "$NTFY_TOPIC" ]; then
+    if [ -z "${NTFY_TOPIC:-}" ]; then
         return 0
     fi
 
@@ -41,7 +45,11 @@ send_notification() {
     local tags="${3:-package}"
     local body="${4:-}"
 
-    if [ -z "$body" ] && [ -f "$LOG_FILE" ]; then
+    if [ "${NOTIFY_LEVEL:-always}" = "errors_only" ] && [ "$priority" != "high" ]; then
+        return 0
+    fi
+
+    if [ -z "$body" ] && [ -n "${LOG_FILE:-}" ] && [ -f "$LOG_FILE" ]; then
         body="$(tail -n 25 "$LOG_FILE")"
     fi
 
@@ -63,7 +71,7 @@ send_webhook() {
     local url="$1"
     local body="$2"
 
-    if [ -z "$url" ]; then
+    if [ -z "${url:-}" ]; then
         return 0
     fi
 
@@ -78,11 +86,18 @@ error_exit() {
     local msg="$1"
     log "ERROR: $msg"
 
+    local body
+    if [ -n "${LOG_FILE:-}" ] && [ -f "${LOG_FILE}" ]; then
+        body="$(tail -n 25 "$LOG_FILE")"
+    else
+        body="$msg"
+    fi
+
     send_notification \
-        "Patch Error – $HOSTNAME" \
+        "Patch Error – ${HOSTNAME:-unknown}" \
         "high" \
         "x,fire,alert" \
-        "$(tail -n 25 "$LOG_FILE")"
+        "$body"
 
     local ts json
     ts=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
@@ -90,7 +105,7 @@ error_exit() {
     if [ -n "${WEBHOOK_ON_FAIL:-}" ]; then
         json=$(jq -n \
             --arg ts "$ts" \
-            --arg host "$HOSTNAME" \
+            --arg host "${HOSTNAME:-unknown}" \
             --arg msg "$msg" \
             '{"event":"failure","host":$host,"timestamp":$ts,"message":$msg}')
         send_webhook "$WEBHOOK_ON_FAIL" "$json"
@@ -98,7 +113,7 @@ error_exit() {
 
     write_event_log "$(jq -n \
         --arg ts "$ts" \
-        --arg host "$HOSTNAME" \
+        --arg host "${HOSTNAME:-unknown}" \
         --arg msg "$msg" \
         '{"timestamp":$ts,"host":$host,"event":"patch_failure","message":$msg}')"
 
