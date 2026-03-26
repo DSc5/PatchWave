@@ -126,6 +126,8 @@ if [ "$REBOOT_REQUIRED" = true ]; then
 else
     log "No reboot required. Patch process complete without reboot."
 
+    delete_proxmox_snapshot
+
     send_notification \
         "Patch Success – $HOSTNAME (no reboot)" \
         "default" \
@@ -157,8 +159,6 @@ Reboot: not required"
         --argjson pkgs "$PKGS_UPDATED_JSON" \
         --argjson dur "$PATCH_DURATION" \
         '{"timestamp":$ts,"host":$host,"event":"patch_success","distro":$distro,"packages_changed":$changed,"packages_updated":$pkgs,"duration_seconds":$dur,"reboot":false}')"
-
-    delete_proxmox_snapshot
 
     rm -f "$TIMESTAMP_FILE" "$STATE_DIR/patch_metadata" "$STATE_DIR/packages_updated"
 fi
