@@ -57,30 +57,7 @@ write_event_log "$(jq -n \
     --arg distro "$DISTRO" \
     '{"timestamp":$ts,"host":$host,"event":"patch_start","distro":$distro}')"
 
-# Proxmox Snapshot handling (optional)
-if {{ proxmox_snapshot_before_patch | default('false') | lower }}; then
-
-    # Abort if a snapshot from a previous run was never cleaned up
-    if [ -f "$STATE_DIR/last_snapshot" ]; then
-        OLD_SNAPSHOT=$(cat "$STATE_DIR/last_snapshot")
-        error_exit "Leftover snapshot reference '${OLD_SNAPSHOT}' found from a previous run. Verify and clean up the snapshot on Proxmox manually, then remove '${STATE_DIR}/last_snapshot' to continue."
-    fi
-
-    SNAPSHOT_NAME="patchwave_$(date +%Y%m%d_%H%M%S)"
-
-    log "Creating Proxmox snapshot before patching..."
-    do_curl -X POST "https://{{ proxmox_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ proxmox_vmid | default('') }}/snapshot" \
-        -H "Authorization: {{ proxmox_token }}" \
-        -H "Content-Type: application/json" \
-        -d "{\"snapname\": \"${SNAPSHOT_NAME}\"}"
-
-    if [ $CURL_EXIT -ne 0 ] || echo "$CURL_RESPONSE" | jq -e '.errors' > /dev/null 2>&1; then
-        error_exit "Failed to create Proxmox snapshot before patching. (exit=${CURL_EXIT}) ${CURL_RESPONSE}"
-    fi
-
-    echo "${SNAPSHOT_NAME}" > "$STATE_DIR/last_snapshot"
-    log "Snapshot created successfully: ${SNAPSHOT_NAME}"
-fi
+create_proxmox_snapshot
 
 # Run package updates
 PKGLIST_BEFORE="${STATE_DIR}/pkglist_before"
@@ -180,6 +157,8 @@ Reboot: not required"
         --argjson pkgs "$PKGS_UPDATED_JSON" \
         --argjson dur "$PATCH_DURATION" \
         '{"timestamp":$ts,"host":$host,"event":"patch_success","distro":$distro,"packages_changed":$changed,"packages_updated":$pkgs,"duration_seconds":$dur,"reboot":false}')"
+
+    delete_proxmox_snapshot
 
     rm -f "$TIMESTAMP_FILE" "$STATE_DIR/patch_metadata" "$STATE_DIR/packages_updated"
 fi

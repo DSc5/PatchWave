@@ -68,23 +68,7 @@ log "No custom post-reboot scripts configured."
 
 rm -f "$MARKER_FILE"
 
-# Proxmox Snapshot Deletion (if enabled)
-if {{ proxmox_snapshot_delete_after_successful_patch | default('true') | lower }}; then
-    if [ -f "$STATE_DIR/last_snapshot" ]; then
-        SNAPSHOT_NAME=$(cat "$STATE_DIR/last_snapshot")
-        log "Deleting Proxmox snapshot: ${SNAPSHOT_NAME}"
-
-        do_curl -X DELETE "https://{{ proxmox_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ proxmox_vmid | default('') }}/snapshot/${SNAPSHOT_NAME}" \
-            -H "Authorization: {{ proxmox_token }}"
-
-        if [ $CURL_EXIT -ne 0 ] || echo "$CURL_RESPONSE" | jq -e '.errors' > /dev/null 2>&1; then
-            error_exit "Failed to delete snapshot ${SNAPSHOT_NAME} on VM {{ proxmox_vmid | default('') }}. (exit=${CURL_EXIT}) ${CURL_RESPONSE}"
-        fi
-
-        log "Successfully deleted snapshot: ${SNAPSHOT_NAME}"
-        rm -f "$STATE_DIR/last_snapshot"
-    fi
-fi
+delete_proxmox_snapshot
 
 log "Patch process completed successfully!"
 
