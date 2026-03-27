@@ -8,15 +8,15 @@
 
 [patchwave_window_sunday_05]
 # Early morning maintenance window
-# pvedc01.example.com
-# pvedc02.example.com
+# web01.example.com
+# web01.example.com
 
 [patchwave_window_sunday_12]
 # Midday maintenance window
-# pvedb01.example.com
-# pvecs02.example.com
+# db01.example.com
+# db02.example.com
 
 [patchwave_window_sunday_1630]
 # Afternoon maintenance window
-# pvegit01.example.com
-# pvezbx01.example.com
+# srv01.example.com
+# srv02.example.com
