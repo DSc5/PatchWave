@@ -81,20 +81,21 @@ PATCH_DURATION=$(( PATCH_END_TIME - PATCH_START_TIME ))
 PATCH_DURATION_MIN=$(( PATCH_DURATION / 60 ))
 PATCH_DURATION_SEC=$(( PATCH_DURATION % 60 ))
 
-PKGS_UPDATED_NAMES=$(comm -13 "$PKGLIST_BEFORE" "$PKGLIST_AFTER" | \
-    awk -F'=' '{print $1}' | sort -u)
-rm -f "$PKGLIST_BEFORE" "$PKGLIST_AFTER"
-
 PACKAGES_CHANGED=0
-if [ -n "$PKGS_UPDATED_NAMES" ]; then
-    PACKAGES_CHANGED=$(echo "$PKGS_UPDATED_NAMES" | wc -l | tr -d ' ')
-fi
+PKGS_UPDATED_JSON="[]"
 
-if [ -z "$PKGS_UPDATED_NAMES" ]; then
-    PKGS_UPDATED_JSON="[]"
-else
-    PKGS_UPDATED_JSON=$(echo "$PKGS_UPDATED_NAMES" | jq -R . | jq -sc .)
-fi
+while IFS='=' read -r pkg_name ver_after; do
+    ver_before=$(grep -m1 "^${pkg_name}=" "$PKGLIST_BEFORE" | cut -d'=' -f2- || true)
+    PACKAGES_CHANGED=$(( PACKAGES_CHANGED + 1 ))
+    PKGS_UPDATED_JSON=$(jq -n \
+        --argjson arr "$PKGS_UPDATED_JSON" \
+        --arg name "$pkg_name" \
+        --arg from "$ver_before" \
+        --arg to "$ver_after" \
+        '$arr + [{"name":$name,"from":$from,"to":$to}]')
+done < <(comm -13 "$PKGLIST_BEFORE" "$PKGLIST_AFTER")
+
+rm -f "$PKGLIST_BEFORE" "$PKGLIST_AFTER"
 
 log "Update process completed successfully on $HOSTNAME."
 log "Duration: ${PATCH_DURATION_MIN}m ${PATCH_DURATION_SEC}s | Packages changed: ${PACKAGES_CHANGED}"
