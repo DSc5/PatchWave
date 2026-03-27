@@ -440,17 +440,13 @@ Default path: `/var/log/patchwave/events.jsonl` (managed by logrotate, configura
 # All failures
 jq 'select(.event == "patch_failure")' /var/log/patchwave/events.jsonl
 
-# Which packages were updated on a specific host
-jq 'select(.event == "patch_success" and .host == "host01.example.com") | .packages_updated[]' \
-  /var/log/patchwave/events.jsonl
-
-# All hosts that received a specific package update
-jq -r 'select(.event == "patch_success") | select(.packages_updated | index("curl")) | .host' \
-  /var/log/patchwave/events.jsonl
-
 # Successful runs in the last 7 days
 jq --arg since "$(date -u -d '7 days ago' '+%Y-%m-%dT%H:%M:%SZ')" \
   'select(.event == "patch_success" and .timestamp >= $since)' \
+  /var/log/patchwave/events.jsonl
+
+# Packages updated in the last run (name, from-version, to-version)
+jq 'select(.event == "patch_success") | .packages_updated[-1:][]' \
   /var/log/patchwave/events.jsonl
 ```
 
