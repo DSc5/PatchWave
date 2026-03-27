@@ -312,14 +312,18 @@ If your webhook endpoint uses a self-signed certificate, set `patchwave_tls_inse
   "host": "host01.example.com",
   "timestamp": "2024-06-01T03:05:42Z",
   "distro": "ubuntu",
-  "packages_changed": 12,
-  "packages_updated": ["curl", "libssl3", "openssh-client"],
+  "packages_changed": 3,
+  "packages_updated": [
+    {"name": "curl",          "from": "7.88.1-10+deb12u4",  "to": "7.88.1-10+deb12u5"},
+    {"name": "libssl3",       "from": "3.0.11-1~deb12u1",   "to": "3.0.13-1~deb12u1"},
+    {"name": "openssh-client","from": "1:9.2p1-2+deb12u2",  "to": "1:9.2p1-2+deb12u3"}
+  ],
   "duration_seconds": 87,
   "reboot": true
 }
 ```
 
-The `reboot` field is `false` when no reboot was required.
+The `reboot` field is `false` when no reboot was required. New package installs (no prior version) have `"from": ""`.
 
 #### Failure Payload
 
@@ -424,11 +428,11 @@ Default path: `/var/log/patchwave/events.jsonl` (managed by logrotate, configura
 
 ```json
 {"timestamp":"2024-06-01T03:00:01Z","host":"host01.example.com","event":"patch_start","distro":"ubuntu"}
-{"timestamp":"2024-06-01T03:01:28Z","host":"host01.example.com","event":"patch_success","distro":"ubuntu","packages_changed":3,"packages_updated":["curl","libssl3","openssh-client"],"duration_seconds":87,"reboot":true}
+{"timestamp":"2024-06-01T03:01:28Z","host":"host01.example.com","event":"patch_success","distro":"ubuntu","packages_changed":3,"packages_updated":[{"name":"curl","from":"7.88.1-10+deb12u4","to":"7.88.1-10+deb12u5"},{"name":"libssl3","from":"3.0.11-1~deb12u1","to":"3.0.13-1~deb12u1"}],"duration_seconds":87,"reboot":true}
 {"timestamp":"2024-06-01T03:00:05Z","host":"host02.example.com","event":"patch_failure","message":"APT update failed on host02.example.com!"}
 ```
 
-`packages_updated` contains the names of packages whose version changed (new installs and upgrades). Derived from a before/after diff of the installed package list — no external tools required.
+`packages_updated` contains each changed package with its before and after version. New installs have `"from": ""`. Derived from a before/after diff of the installed package list — no external tools required beyond `jq`.
 
 ### Ad-hoc Queries with jq
 
