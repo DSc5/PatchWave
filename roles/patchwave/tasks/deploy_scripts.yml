@@ -32,15 +32,6 @@
     - "{{ patchwave_state_dir }}"
     - "{{ patchwave_log_dir }}"
 
-- name: Remove old custom script directories (replaced by patchwave_pre/post_reboot_scripts variables)
-  file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-    - "{{ patchwave_config_dir }}/custom-pre-reboot-scripts"
-    - "{{ patchwave_config_dir }}/custom-post-reboot-scripts"
-    - "{{ patchwave_config_dir }}/custom-start-scripts"
-
 - name: Deploy runtime configuration
   template:
     src: patchwave-config.sh.j2
