@@ -62,7 +62,7 @@
     content: |
       [Unit]
       Description=PatchWave – Start services after patch reboot
-      After=network-online.target
+      After=network-online.target multi-user.target
 
       [Service]
       Type=oneshot

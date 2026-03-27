@@ -114,8 +114,8 @@ PatchWave installs the following third-party packages automatically on each mana
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
-cd patchwave
+git clone https://github.com/DSc5/PatchWave.git
+cd PatchWave
 ```
 
 ### 2. Set Up the Inventory
