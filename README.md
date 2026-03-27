@@ -456,51 +456,6 @@ The file format is natively supported by Promtail (Loki), Filebeat (Elasticsearc
 
 ---
 
-## Project Structure
-
-```
-patchwave/
-├── deploy_patchwave.yml                  # Main playbook (calls the role)
-├── patchwave.ini.example                 # Example inventory
-├── group_vars/
-│   ├── patchwave_window.yml.template     # Patch window template
-│   └── all/
-│       ├── vars.yml.template             # Global variables template
-│       └── vault.yml.template            # Secrets template (encrypt after copy)
-├── host_vars/
-│   └── host_vars.yml.template            # Per-host variables template
-├── roles/
-│   └── patchwave/
-│       ├── defaults/main.yml             # All variables with defaults
-│       ├── files/functions.sh            # Shared shell functions
-│       ├── handlers/main.yml             # systemd reload/restart handlers
-│       ├── tasks/
-│       │   ├── main.yml                  # Task entry point
-│       │   ├── deploy_scripts.yml        # Deploy scripts and services
-│       │   ├── deploy_timer.yml          # Set up systemd timer
-│       │   └── remove_timer.yml          # Remove timer if no window set
-│       ├── templates/
-│       │   ├── patchwave-config.sh.j2        # Runtime config (deployed to /etc/patchwave/config.sh)
-│       │   ├── patchwave-patch.sh.j2
-│       │   ├── patchwave-pre-reboot.sh.j2
-│       │   ├── patchwave-post-reboot.sh.j2
-│       │   ├── patchwave-logrotate.j2
-│       │   ├── patchwave.service.j2
-│       │   ├── patchwave.timer.j2
-│       │   └── distro/                       # Distro-specific sub-templates
-│       │       ├── patch-pkg-debian.sh.j2
-│       │       ├── patch-pkg-rhel.sh.j2
-│       │       ├── patch-pkg-suse.sh.j2
-│       │       ├── patch-pkg-arch.sh.j2
-│       │       └── reboot-check.sh.j2
-│       └── meta/main.yml                # Role metadata
-├── .gitignore
-├── LICENSE
-└── README.md
-```
-
----
-
 ## Variable Reference
 
 All variables are defined in `roles/patchwave/defaults/main.yml`. Override priority (highest first):
