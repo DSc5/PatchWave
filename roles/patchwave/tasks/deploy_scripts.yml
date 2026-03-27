@@ -11,21 +11,6 @@
       required variables are missing: proxmox_host, proxmox_node, proxmox_token, proxmox_vmid.
   when: proxmox_snapshot_before_patch | default(false) | bool
 
-- name: Ensure jq is installed
-  package:
-    name: jq
-    state: present
-
-- name: Ensure needrestart is installed
-  package:
-    name: needrestart
-    state: present
-
-- name: Ensure curl is installed
-  package:
-    name: curl
-    state: present
-
 - name: Ensure required directories exist
   file:
     path: "{{ item }}"
