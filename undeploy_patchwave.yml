@@ -1,0 +1,70 @@
+---
+- name: Undeploy PatchWave
+  hosts: all
+  become: yes
+  vars_files:
+    - roles/patchwave/defaults/main.yml
+
+  tasks:
+    - name: Disable and stop patchwave timer
+      systemd:
+        name: patchwave.timer
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Disable and stop patchwave service
+      systemd:
+        name: patchwave.service
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Disable and stop patchwave-post-reboot service
+      systemd:
+        name: patchwave-post-reboot.service
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Remove systemd unit files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/patchwave.timer
+        - /etc/systemd/system/patchwave.service
+        - /etc/systemd/system/patchwave-post-reboot.service
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Remove PatchWave scripts
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ patchwave_script_dir }}/patchwave-patch.sh"
+        - "{{ patchwave_script_dir }}/patchwave-pre-reboot.sh"
+        - "{{ patchwave_script_dir }}/patchwave-post-reboot.sh"
+
+    - name: Remove PatchWave config directory
+      file:
+        path: "{{ patchwave_config_dir }}"
+        state: absent
+
+    - name: Remove PatchWave state directory
+      file:
+        path: "{{ patchwave_state_dir }}"
+        state: absent
+
+    - name: Remove PatchWave log directory
+      file:
+        path: "{{ patchwave_log_dir }}"
+        state: absent
+
+    - name: Remove logrotate configuration
+      file:
+        path: /etc/logrotate.d/patchwave
+        state: absent
