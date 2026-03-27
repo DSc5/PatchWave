@@ -98,7 +98,6 @@ This section covers the minimum steps to get PatchWave running. For detailed con
 - **Ansible 2.12+** on a control node
 - **SSH access** to all managed hosts with sudo/root privileges
 - **Optional:** [ntfy.sh](https://ntfy.sh) for push notifications
-- **Optional:** `curl` on managed hosts (for notifications, webhooks, or Proxmox snapshots)
 
 ### Runtime Dependencies
 
@@ -108,7 +107,7 @@ PatchWave installs the following third-party packages automatically on each mana
 |---|---|---|
 | `jq` | JSON generation for event log and webhook payloads | All hosts |
 | `needrestart` | Detect processes using outdated libraries after patching | All hosts |
-| `curl` | Notifications (ntfy.sh), webhooks, Proxmox API calls | **Not installed automatically** — must be present if any of these features are enabled |
+| `curl` | Notifications (ntfy.sh), webhooks, Proxmox API calls | All hosts |
 
 > **Note for RHEL-based systems:** `needrestart` is available in the [EPEL](https://docs.fedoraproject.org/en-US/epel/) repository. Ensure EPEL is enabled on your RHEL/CentOS/Rocky/AlmaLinux hosts before deploying PatchWave.
 
@@ -454,51 +453,6 @@ jq --arg since "$(date -u -d '7 days ago' '+%Y-%m-%dT%H:%M:%SZ')" \
 ### Integration with Log Shippers
 
 The file format is natively supported by Promtail (Loki), Filebeat (Elasticsearch/OpenSearch), Vector, Fluentd, and Grafana Alloy — no PatchWave-specific plugin needed. Point any of these at `events.jsonl` and parse as NDJSON/JSON Lines.
-
----
-
-## Project Structure
-
-```
-patchwave/
-├── deploy_patchwave.yml                  # Main playbook (calls the role)
-├── patchwave.ini.example                 # Example inventory
-├── group_vars/
-│   ├── patchwave_window.yml.template     # Patch window template
-│   └── all/
-│       ├── vars.yml.template             # Global variables template
-│       └── vault.yml.template            # Secrets template (encrypt after copy)
-├── host_vars/
-│   └── host_vars.yml.template            # Per-host variables template
-├── roles/
-│   └── patchwave/
-│       ├── defaults/main.yml             # All variables with defaults
-│       ├── files/functions.sh            # Shared shell functions
-│       ├── handlers/main.yml             # systemd reload/restart handlers
-│       ├── tasks/
-│       │   ├── main.yml                  # Task entry point
-│       │   ├── deploy_scripts.yml        # Deploy scripts and services
-│       │   ├── deploy_timer.yml          # Set up systemd timer
-│       │   └── remove_timer.yml          # Remove timer if no window set
-│       ├── templates/
-│       │   ├── patchwave-config.sh.j2        # Runtime config (deployed to /etc/patchwave/config.sh)
-│       │   ├── patchwave-patch.sh.j2
-│       │   ├── patchwave-pre-reboot.sh.j2
-│       │   ├── patchwave-post-reboot.sh.j2
-│       │   ├── patchwave-logrotate.j2
-│       │   ├── patchwave.service.j2
-│       │   ├── patchwave.timer.j2
-│       │   └── distro/                       # Distro-specific sub-templates
-│       │       ├── patch-pkg-debian.sh.j2
-│       │       ├── patch-pkg-rhel.sh.j2
-│       │       ├── patch-pkg-suse.sh.j2
-│       │       ├── patch-pkg-arch.sh.j2
-│       │       └── reboot-check.sh.j2
-│       └── meta/main.yml                # Role metadata
-├── .gitignore
-├── LICENSE
-└── README.md
-```
 
 ---
 

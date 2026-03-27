@@ -1,0 +1,15 @@
+---
+- name: Ensure jq is installed
+  package:
+    name: jq
+    state: present
+
+- name: Ensure needrestart is installed
+  package:
+    name: needrestart
+    state: present
+
+- name: Ensure curl is installed
+  package:
+    name: curl
+    state: present
