@@ -98,7 +98,6 @@ This section covers the minimum steps to get PatchWave running. For detailed con
 - **Ansible 2.12+** on a control node
 - **SSH access** to all managed hosts with sudo/root privileges
 - **Optional:** [ntfy.sh](https://ntfy.sh) for push notifications
-- **Optional:** `curl` on managed hosts (for notifications, webhooks, or Proxmox snapshots)
 
 ### Runtime Dependencies
 
@@ -108,7 +107,7 @@ PatchWave installs the following third-party packages automatically on each mana
 |---|---|---|
 | `jq` | JSON generation for event log and webhook payloads | All hosts |
 | `needrestart` | Detect processes using outdated libraries after patching | All hosts |
-| `curl` | Notifications (ntfy.sh), webhooks, Proxmox API calls | **Not installed automatically** — must be present if any of these features are enabled |
+| `curl` | Notifications (ntfy.sh), webhooks, Proxmox API calls | All hosts |
 
 > **Note for RHEL-based systems:** `needrestart` is available in the [EPEL](https://docs.fedoraproject.org/en-US/epel/) repository. Ensure EPEL is enabled on your RHEL/CentOS/Rocky/AlmaLinux hosts before deploying PatchWave.
 

@@ -21,6 +21,11 @@
     name: needrestart
     state: present
 
+- name: Ensure curl is installed
+  package:
+    name: curl
+    state: present
+
 - name: Ensure required directories exist
   file:
     path: "{{ item }}"
