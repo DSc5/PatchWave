@@ -1,0 +1,31 @@
+---
+- name: Validate patchwave_reboot_policy
+  assert:
+    that: patchwave_reboot_policy in ['always', 'when_required']
+    fail_msg: "patchwave_reboot_policy must be 'always' or 'when_required', got: '{{ patchwave_reboot_policy }}'"
+
+- name: Validate patchwave_apt_upgrade_mode
+  assert:
+    that: patchwave_apt_upgrade_mode in ['upgrade', 'full-upgrade']
+    fail_msg: "patchwave_apt_upgrade_mode must be 'upgrade' or 'full-upgrade', got: '{{ patchwave_apt_upgrade_mode }}'"
+
+- name: Validate patchwave_notify_level
+  assert:
+    that: patchwave_notify_level in ['always', 'errors_only']
+    fail_msg: "patchwave_notify_level must be 'always' or 'errors_only', got: '{{ patchwave_notify_level }}'"
+
+- name: Validate patchwave_script_timeout
+  assert:
+    that: patchwave_script_timeout | int > 0
+    fail_msg: "patchwave_script_timeout must be a positive integer, got: '{{ patchwave_script_timeout }}'"
+
+- name: Validate patchwave_log_retention_days
+  assert:
+    that: patchwave_log_retention_days | int > 0
+    fail_msg: "patchwave_log_retention_days must be a positive integer, got: '{{ patchwave_log_retention_days }}'"
+
+- name: Validate patchwave_precheck_min_disk_gb
+  assert:
+    that: patchwave_precheck_min_disk_gb | int > 0
+    fail_msg: "patchwave_precheck_min_disk_gb must be a positive integer, got: '{{ patchwave_precheck_min_disk_gb }}'"
+  when: patchwave_precheck_disk_space | default(true) | bool
