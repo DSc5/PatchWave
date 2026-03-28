@@ -50,6 +50,10 @@ DISTRO="{{ ansible_distribution | lower }}"
 
 log "Detected Linux distribution: $DISTRO"
 
+{% if patchwave_precheck_disk_space | default(true) %}
+check_disk_space "$PRECHECK_MIN_DISK_GB"
+{% endif %}
+
 EVENT_TS=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 write_event_log "$(jq -n \
     --arg ts "$EVENT_TS" \

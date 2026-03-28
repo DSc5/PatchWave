@@ -135,6 +135,30 @@ delete_proxmox_snapshot() {
     rm -f "$STATE_DIR/last_snapshot"
 }
 
+check_disk_space() {
+    local required_gb="$1"
+    local available_gb
+
+    # Always check /var (package download cache for all distros)
+    available_gb=$(df -BG /var | awk 'NR==2 {gsub(/G/,"",$4); print $4}')
+    if [ "$available_gb" -lt "$required_gb" ]; then
+        error_exit "Precheck failed: insufficient disk space on /var — ${available_gb}GB available, ${required_gb}GB required."
+    fi
+    log "Precheck passed: ${available_gb}GB available on /var (required: ${required_gb}GB)."
+
+    # If /var is on a separate filesystem, also check / for package installation
+    local var_dev root_dev
+    var_dev=$(df /var | awk 'NR==2 {print $1}')
+    root_dev=$(df / | awk 'NR==2 {print $1}')
+    if [ "$var_dev" != "$root_dev" ]; then
+        available_gb=$(df -BG / | awk 'NR==2 {gsub(/G/,"",$4); print $4}')
+        if [ "$available_gb" -lt "$required_gb" ]; then
+            error_exit "Precheck failed: insufficient disk space on / — ${available_gb}GB available, ${required_gb}GB required."
+        fi
+        log "Precheck passed: ${available_gb}GB available on / (required: ${required_gb}GB)."
+    fi
+}
+
 error_exit() {
     local msg="$1"
     log "ERROR: $msg"
