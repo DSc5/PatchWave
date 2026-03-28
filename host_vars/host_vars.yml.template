@@ -23,6 +23,14 @@
 #   - /usr/local/bin/my-post-reboot-script.sh
 
 ###########################################################################
+# Prechecks (optional)
+# Override global precheck settings per host, e.g. for hosts with less disk space.
+###########################################################################
+
+# patchwave_precheck_disk_space: true
+# patchwave_precheck_min_disk_gb: 2
+
+###########################################################################
 # Patch Behavior
 ###########################################################################
 

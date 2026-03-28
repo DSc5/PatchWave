@@ -20,6 +20,11 @@ TLS_INSECURE="{{ patchwave_tls_insecure | default(false) | lower }}"
 # Observability
 EVENT_LOG="{{ patchwave_event_log }}"
 
+# Prechecks
+{% if patchwave_precheck_disk_space | default(true) %}
+PRECHECK_MIN_DISK_GB={{ patchwave_precheck_min_disk_gb | default(2) }}
+{% endif %}
+
 # Patch behavior
 SCRIPT_TIMEOUT={{ patchwave_script_timeout }}
 

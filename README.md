@@ -177,6 +177,23 @@ To protect sensitive values (e.g. Proxmox API tokens), use [ansible-vault](https
 
 > **How configuration reaches the host:** During deployment, Ansible renders all variable values into `/etc/patchwave/config.sh` on each managed host. This file is the single runtime source of truth for all PatchWave scripts. It is owned by root and not readable by other users — you do not need to edit it directly.
 
+### Prechecks
+
+PatchWave can run sanity checks before starting the patch process. A failed precheck aborts the run with an error notification — no packages are installed.
+
+#### Disk Space
+
+```yaml
+patchwave_precheck_disk_space: true   # Default: enabled
+patchwave_precheck_min_disk_gb: 2     # Default: 2GB
+```
+
+Checks free space on the filesystem containing `/var` (package download cache for all supported distros). If `/var` is on a separate partition, `/` is checked as well — both must have at least `patchwave_precheck_min_disk_gb` free.
+
+Set `patchwave_precheck_disk_space: false` to disable the check entirely.
+
+---
+
 ### Reboot Policy
 
 ```yaml
@@ -467,6 +484,8 @@ All variables are defined in `roles/patchwave/defaults/main.yml`. Override prior
 
 | Variable | Default | Description |
 |---|---|---|
+| `patchwave_precheck_disk_space` | `true` | Check free disk space before patching |
+| `patchwave_precheck_min_disk_gb` | `2` | Minimum free disk space in GB (checked on `/var` and optionally `/`) |
 | `patchwave_reboot_policy` | `always` | `always` or `when_required` |
 | `patchwave_apt_upgrade_mode` | `upgrade` | `upgrade` or `full-upgrade` (Debian/Ubuntu only) |
 | `patchwave_services` | `[]` | Services to stop/start around patching |

@@ -1,4 +1,7 @@
 ---
+- name: Validate configuration
+  include_tasks: validate.yml
+
 - name: Install required packages
   include_tasks: install_packages.yml
 

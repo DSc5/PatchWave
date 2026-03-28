@@ -66,6 +66,17 @@ patchwave_pre_reboot_scripts: []
 patchwave_post_reboot_scripts: []
 
 ###########################################################################
+# Prechecks
+###########################################################################
+
+# Check available disk space on /var before patching.
+# Set to false to disable.
+patchwave_precheck_disk_space: true
+
+# Minimum required free disk space in GB (checked on the filesystem containing /var).
+patchwave_precheck_min_disk_gb: 2
+
+###########################################################################
 # Patch Behavior
 ###########################################################################
 

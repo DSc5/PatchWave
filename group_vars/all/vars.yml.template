@@ -34,6 +34,14 @@
 # patchwave_event_log: "/var/log/patchwave/events.jsonl"
 
 ###########################################################################
+# Prechecks (optional)
+# Check available disk space before patching. Aborts with error if insufficient.
+# /var is always checked; / is also checked if it is on a separate partition.
+###########################################################################
+# patchwave_precheck_disk_space: true
+# patchwave_precheck_min_disk_gb: 2
+
+###########################################################################
 # Patch Behavior
 # APT upgrade mode for Debian/Ubuntu only: "upgrade" (safe) or "full-upgrade" (may remove packages)
 ###########################################################################
