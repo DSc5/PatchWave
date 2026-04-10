@@ -140,7 +140,7 @@ check_disk_space() {
     local available_gb
 
     # Always check /var (package download cache for all distros)
-    available_gb=$(df -BG /var | awk 'NR==2 {gsub(/G/,"",$4); print $4}')
+    available_gb=$(df --output=avail -BG /var | tail -1 | tr -d ' G')
     if [ "$available_gb" -lt "$required_gb" ]; then
         error_exit "Precheck failed: insufficient disk space on /var — ${available_gb}GB available, ${required_gb}GB required."
     fi
@@ -148,10 +148,10 @@ check_disk_space() {
 
     # If /var is on a separate filesystem, also check / for package installation
     local var_dev root_dev
-    var_dev=$(df /var | awk 'NR==2 {print $1}')
-    root_dev=$(df / | awk 'NR==2 {print $1}')
+    var_dev=$(df --output=source /var | tail -1 | tr -d ' ')
+    root_dev=$(df --output=source / | tail -1 | tr -d ' ')
     if [ "$var_dev" != "$root_dev" ]; then
-        available_gb=$(df -BG / | awk 'NR==2 {gsub(/G/,"",$4); print $4}')
+        available_gb=$(df --output=avail -BG / | tail -1 | tr -d ' G')
         if [ "$available_gb" -lt "$required_gb" ]; then
             error_exit "Precheck failed: insufficient disk space on / — ${available_gb}GB available, ${required_gb}GB required."
         fi
