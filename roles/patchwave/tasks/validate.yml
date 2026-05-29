@@ -29,3 +29,12 @@
     that: patchwave_precheck_min_disk_gb | int > 0
     fail_msg: "patchwave_precheck_min_disk_gb must be a positive integer, got: '{{ patchwave_precheck_min_disk_gb }}'"
   when: patchwave_precheck_disk_space | default(true) | bool
+
+- name: Validate Proxmox snapshot configuration is not contradictory
+  assert:
+    that: proxmox_snapshot_before_patch | default(false) | bool
+    fail_msg: >
+      proxmox_snapshot_delete_after_success is true for '{{ inventory_hostname }}' but
+      proxmox_snapshot_before_patch is false — snapshots cannot be deleted if none are created.
+      Either enable proxmox_snapshot_before_patch or disable proxmox_snapshot_delete_after_success.
+  when: proxmox_snapshot_delete_after_success | default(false) | bool
